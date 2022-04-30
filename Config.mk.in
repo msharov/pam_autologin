@@ -1,0 +1,38 @@
+name		:= @pkg_name@
+
+################ Programs ############################################
+
+CC		:= @CC@
+INSTALL		:= @INSTALL@
+INSTALL_DATA	:= ${INSTALL} -m 644
+INSTALL_PROGRAM	:= ${INSTALL} -m 700 -o root -g root -s
+
+################ Destination #########################################
+
+prefix		:= @prefix@
+sbindir		:= @sbindir@
+sysconfdir	:= @sysconfdir@
+pamdir		:= @pamdir@
+libdir		:= @libdir@
+sysddir		:= @sysddir@
+datadir		:= @datadir@
+mandir		:= @mandir@
+man1dir		:= @man1dir@
+TMPDIR		:= @TMPDIR@
+builddir	:= @builddir@/${name}
+O		:= .o/
+
+################ Compiler options ####################################
+
+#debug		:= 1
+libs		:= @pkg_libs@ -lpam
+ifdef debug
+    cflags	:= -O0 -ggdb3
+    ldflags	:= -g -rdynamic
+else
+    cflags	:= -Os -g0 -DNDEBUG=1
+    ldflags	:= -s
+endif
+CFLAGS		:= -Wall -Wextra -Wredundant-decls -Wshadow
+cflags		+= -std=c11 @pkg_cflags@ ${CFLAGS}
+ldflags		+= @pkg_ldflags@ ${LDFLAGS}
