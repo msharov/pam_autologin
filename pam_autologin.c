@@ -1,23 +1,39 @@
 // Copyright (c) 2022 by Mike Sharov <msharov@users.sourceforge.net>
 // This file is free software, distributed under the ISC license.
 
-#include <pam_client.h>
+#ifndef _GNU_SOURCE
+    #define _GNU_SOURCE 1
+#endif
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <utmp.h>
 #include <paths.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <syslog.h>
+#include <errno.h>
 #include <time.h>
 #if __has_include(<sys/random.h>)
     #include <sys/random.h>
 #endif
+#include <security/pam_modules.h>
+#include <security/pam_ext.h>
 
 //{{{ Constants --------------------------------------------------------
 
 #define PATH_AUTOLOGIN_CONF	"/tmp/autologin.conf"
 enum { MaxALSize = 64 };
+
+//}}}-------------------------------------------------------------------
+//{{{ wipe_buffer
+
+// An explicitly noinline memset to ensure gcc doesn't think it knows better
+static __attribute__((noinline)) void wipe_buffer (void* buf, size_t bufsz)
+    { memset (buf, 0, bufsz); }
 
 //}}}-------------------------------------------------------------------
 //{{{ is_first_login
@@ -37,7 +53,7 @@ static bool is_first_login (const char* tty)
     while (rend > 0) {
 	enum { UPerBlock = 16 };
 	struct utmp utra [UPerBlock] = {};
-	memset (&utra[0], 0, sizeof(utra));
+	wipe_buffer (&utra[0], sizeof(utra));
 	off_t rstart = rend - sizeof(utra);
 	unsigned uistart = 0;
 	if (rstart < 0) {
@@ -90,7 +106,7 @@ static ssize_t getrandom (void* buf, size_t buflen, unsigned flags [[maybe_unuse
 
 static size_t write_buffer (const char* username, const char* password, char* buf, size_t bufsz)
 {
-    memset (buf, 0, bufsz);
+    wipe_buffer (buf, bufsz);
     size_t username_len = strlen (username),
 	    password_len = strlen (password),
 	    uplen = username_len+1+password_len+1;
@@ -137,17 +153,30 @@ static void read_buffer (char* buf, size_t bufsz, const char** username, const c
 //}}}-------------------------------------------------------------------
 //{{{ autologin file read/write
 
+static bool is_autologin_enabled (void)
+{
+    struct stat st;
+    return 0 > stat (PATH_AUTOLOGIN_CONF, &st);
+}
+
 static bool write_autologin (const char* username, const char* password)
 {
+    // Ensure root:root 0600
+    if (0 != chown (PATH_AUTOLOGIN_CONF, 0, 0))
+	return false;
+    if (0 != chmod (PATH_AUTOLOGIN_CONF, S_IRUSR| S_IWUSR))
+	return false;
+
     _Alignas(uint32_t) char albuf [MaxALSize];
     size_t usz = write_buffer (username, password, albuf, sizeof(albuf));
     if (!usz)
 	return false;
+
     int fd = open (PATH_AUTOLOGIN_CONF, O_WRONLY| O_CREAT| O_TRUNC, S_IRUSR| S_IWUSR);
     if (fd < 0)
 	return false;
     ssize_t bw = write (fd, albuf, usz);
-    memset (albuf, 0, sizeof(albuf));
+    wipe_buffer (albuf, sizeof(albuf));
     close (fd);
     return bw == (ssize_t) usz;
 }
@@ -171,6 +200,138 @@ static size_t read_autologin (char* upbuf, size_t upbufsz, const char** username
 }
 
 //}}}-------------------------------------------------------------------
+//{{{ autologin_with
+
+static int autologin_with (pam_handle_t* pamh, const char* al_username, const char* al_password)
+{
+    //
+    // Set username, if not set already
+    //
+    const char *cur_username = NULL;
+    if (PAM_SUCCESS != pam_get_item (pamh, PAM_USER, (const void**) &cur_username))
+	cur_username = NULL;
+    if (!cur_username) {
+	int r = pam_set_item (pamh, PAM_USER, (const void**) &al_username);
+	if (r != PAM_SUCCESS) {
+	    pam_syslog (pamh, LOG_ERR, "pam_set_item: %s", pam_strerror (pamh, r));
+	    return PAM_USER_UNKNOWN;
+	}
+    } else if (0 != strcmp (cur_username, al_username))
+	return PAM_SUCCESS; // already logging in somebody else
+    //
+    // Set password
+    //
+    int r = pam_set_item (pamh, PAM_AUTHTOK, (const void**) &al_password);
+    if (r != PAM_SUCCESS) {
+	pam_syslog (pamh, LOG_ERR, "pam_set_item: %s", pam_strerror (pamh, r));
+	return PAM_AUTH_ERR;
+    }
+    return PAM_SUCCESS;
+}
+
+//}}}-------------------------------------------------------------------
+//{{{ setup_autologin
+
+static int setup_autologin (pam_handle_t* pamh)
+{
+    //
+    // Ask for username, just like pam_unix does
+    //
+    const char* username = NULL;
+    int r = pam_get_user (pamh, &username, NULL);
+    if (r == PAM_CONV_AGAIN)
+	return PAM_INCOMPLETE;
+    else if (r != PAM_SUCCESS || !username) {
+	pam_syslog (pamh, LOG_ERR, "pam_get_user: %s", pam_strerror (pamh, r));
+	return PAM_USER_UNKNOWN;
+    } else if (username[0] == '-' || username[0] == '+') {
+	// This check is copied from pam_unix
+	pam_syslog (pamh, LOG_NOTICE, "bad username [%s]", username);
+	return PAM_USER_UNKNOWN;
+    }
+    //
+    // Ask for password
+    //
+    const char* password = NULL;
+    r = pam_get_authtok (pamh, PAM_AUTHTOK, &password , NULL);
+    if (r == PAM_CONV_AGAIN)
+	return PAM_INCOMPLETE;
+    else if (r != PAM_SUCCESS || !password) {
+	pam_syslog (pamh, LOG_CRIT, "auth could not identify password for [%s]: %s", username, pam_strerror (pamh, r));
+	return PAM_AUTH_ERR;
+    }
+    //
+    // Write both to the conf file
+    //
+    if (!write_autologin ("johndoe", "iloveyoum"))
+	pam_syslog (pamh, LOG_ERR, "failed to save autologin: %s", strerror (errno));
+	// Failure to save autologin should not fail the login
+    return PAM_SUCCESS;
+}
+
+//}}}-------------------------------------------------------------------
+
+int pam_sm_authenticate (pam_handle_t* pamh, int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+{
+    static bool s_tried_already = false;
+    if (s_tried_already)
+	return PAM_SUCCESS; // retrying login, possibly because the autologin saved password is wrong
+    s_tried_already = true;
+
+    const char* cur_password = NULL;
+    if (PAM_SUCCESS != pam_get_item (pamh, PAM_AUTHTOK, (const void**) &cur_password) || cur_password)
+	return PAM_SUCCESS; // already authenticated
+
+    if (!is_autologin_enabled())
+	return PAM_SUCCESS;
+
+    int result = PAM_SUCCESS;
+    _Alignas(uint32_t) char albuf [MaxALSize];
+    const char *al_username = NULL, *al_password = NULL;
+    size_t albufsz = read_autologin (albuf, sizeof(albuf), &al_username, &al_password);
+    if (albufsz && al_username && al_password)
+	result = autologin_with (pamh, al_username, al_password);
+    else
+	result = setup_autologin (pamh);
+    wipe_buffer (albuf, sizeof(albuf));
+    return result;
+}
+
+int pam_sm_chauthtok (pam_handle_t* pamh [[maybe_unused]], int flags, int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+{
+    if (!(flags & PAM_UPDATE_AUTHTOK) || (flags & PAM_PRELIM_CHECK))
+	return PAM_IGNORE;
+    //
+    // Changing the password can be complicated and the actual code to do it
+    // ought to stay in pam_unix. While it is possible to change the autologin
+    // password here, it is probably safer to just reset and save the next login.
+    //
+    struct stat st;
+    if (0 > stat (PATH_AUTOLOGIN_CONF, &st) || !st.st_size)
+	return PAM_SUCCESS;
+    //
+    // To reset, wipe the old data and truncate the file to zero
+    //
+    int fd = open (PATH_AUTOLOGIN_CONF, O_WRONLY);
+    if (fd >= 0) {
+	_Alignas(uint32_t) char albuf [MaxALSize];
+	wipe_buffer (albuf, sizeof(albuf));
+	write (fd, albuf, st.st_size < (off_t) sizeof(albuf) ? (size_t) st.st_size : sizeof(albuf));
+	lseek (fd, 0, SEEK_SET);
+	ftruncate (fd, 0);
+	close (fd);
+    }
+    return PAM_SUCCESS;
+}
+
+int pam_sm_setcred (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+    { return PAM_SUCCESS; }
+int pam_sm_acct_mgmt (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+    { return PAM_IGNORE; }
+int pam_sm_open_session (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+    { return PAM_IGNORE; }
+int pam_sm_close_session (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+    { return PAM_IGNORE; }
 
 int main (void)
 {
@@ -182,7 +343,7 @@ int main (void)
 	puts ("Autologin disabled");
     else
 	printf ("Autologin enabled for %s: %s\n", username, password);
-    memset (albuf, 0, sizeof(albuf));
+    wipe_buffer (albuf, sizeof(albuf));
     if (!is_first_login ("tty1"))
 	puts ("Not first login");
     else
