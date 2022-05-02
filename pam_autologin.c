@@ -10,7 +10,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
-#include <sys/random.h>
+#if __has_include(<sys/random.h>)
+    #include <sys/random.h>
+#endif
 
 //{{{ Constants --------------------------------------------------------
 
@@ -73,6 +75,18 @@ static void encrypt (uint32_t key, char* buf, size_t bufsz)
 
 //}}}-------------------------------------------------------------------
 //{{{ Written format packing
+
+#if !__has_include(<sys/random.h>)
+static ssize_t getrandom (void* buf, size_t buflen, unsigned flags [[maybe_unused]])
+{
+    int r = -1, fd = open (_PATH_DEV "random", O_RDONLY);
+    if (fd >= 0) {
+	r = read (fd, buf, buflen);
+	close (fd);
+    }
+    return r == (int) buflen ? r : -1;
+}
+#endif
 
 static size_t write_buffer (const char* username, const char* password, char* buf, size_t bufsz)
 {
