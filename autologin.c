@@ -217,8 +217,10 @@ static int autologin_with (pam_handle_t* pamh, const char* al_username, const ch
 	    return PAM_USER_UNKNOWN;
 	}
 	pam_syslog (pamh, LOG_INFO, "automatically logging in user %s", al_username);
-    } else if (0 != strcmp (cur_username, al_username))
+    } else if (0 != strcmp (cur_username, al_username)) {
+	pam_syslog (pamh, LOG_INFO, "can not autologin user %s", cur_username);
 	return PAM_SUCCESS; // already logging in somebody else
+    }
     //
     // Set password
     //
@@ -314,6 +316,8 @@ int pam_sm_authenticate (pam_handle_t* pamh, int flags [[maybe_unused]], int arg
 	//
 	if (!login_tty || (argc > 0 && 0 == strcmp ("always", argv[0])) || is_first_login (login_tty))
 	    result = autologin_with (pamh, al_username, al_password);
+	else
+	    pam_syslog (pamh, LOG_INFO, "not first login on %s, aborting autologin", login_tty);
     } else {
 	//
 	// Credentials not available; remember the next non-root login
