@@ -271,7 +271,7 @@ static int setup_autologin (pam_handle_t* pamh)
 
 //}}}-------------------------------------------------------------------
 
-int pam_sm_authenticate (pam_handle_t* pamh, int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+int pam_sm_authenticate (pam_handle_t* pamh, int flags, int argc [[maybe_unused]], const char** argv [[maybe_unused]])
 {
     static bool s_tried_already = false;
     if (s_tried_already)
@@ -291,8 +291,11 @@ int pam_sm_authenticate (pam_handle_t* pamh, int flags [[maybe_unused]], int arg
     size_t albufsz = read_autologin (albuf, sizeof(albuf), &al_username, &al_password);
     if (albufsz && al_username && al_password)
 	result = autologin_with (pamh, al_username, al_password);
-    else
+    else {
+	if (!(flags & PAM_SILENT))
+	    pam_info (pamh, "Autologin will remember the next non-root login");
 	result = setup_autologin (pamh);
+    }
     wipe_buffer (albuf, sizeof(albuf));
     return result;
 }
@@ -321,6 +324,8 @@ int pam_sm_chauthtok (pam_handle_t* pamh [[maybe_unused]], int flags, int argc [
 	ftruncate (fd, 0);
 	close (fd);
     }
+    if (!(flags & PAM_SILENT))
+	pam_info (pamh, "Autologin forgot saved login");
     return PAM_SUCCESS;
 }
 
