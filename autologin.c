@@ -211,7 +211,7 @@ static int autologin_with (pam_handle_t* pamh, const char* al_username, const ch
     if (PAM_SUCCESS != pam_get_item (pamh, PAM_USER, (const void**) &cur_username))
 	cur_username = NULL;
     if (!cur_username) {
-	int r = pam_set_item (pamh, PAM_USER, (const void**) &al_username);
+	int r = pam_set_item (pamh, PAM_USER, al_username);
 	if (r != PAM_SUCCESS) {
 	    pam_syslog (pamh, LOG_ERR, "pam_set_item: %s", pam_strerror (pamh, r));
 	    return PAM_USER_UNKNOWN;
@@ -222,7 +222,7 @@ static int autologin_with (pam_handle_t* pamh, const char* al_username, const ch
     //
     // Set password
     //
-    int r = pam_set_item (pamh, PAM_AUTHTOK, (const void**) &al_password);
+    int r = pam_set_item (pamh, PAM_AUTHTOK, al_password);
     if (r != PAM_SUCCESS) {
 	pam_syslog (pamh, LOG_ERR, "pam_set_item: %s", pam_strerror (pamh, r));
 	return PAM_AUTH_ERR;
