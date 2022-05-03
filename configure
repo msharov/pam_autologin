@@ -85,15 +85,11 @@ Configuration:
   -V, --version		display version information and exit
 
 Installation directories:
-  --prefix=dir		architecture-independent root [/usr/local]
-  --sbindir=dir		admin executable dir [/sbin]
+  --prefix=dir		architecture-independent root [/usr]
   --datadir=dir		architecture-independent data dir [prefix/share]
   --mandir=dir		man page root [datadir/man]
-  --man1dir=dir		man 1 page root [mandir/man1]
-  --sysconfdir=dir	system configuration dir [/etc]
-  --pamdir=dir		PAM configuration [sysconfdir/pam.d]
+  --man8dir=dir		man 8 page root [mandir/man8]
   --libdir=dir		object code libraries [prefix/lib]
-  --sysddir=dir		systemd configuration [libdir/systemd/system]
   --builddir=dir	location for compiled objects [\$TMPDIR/make]
 "
     print_components
@@ -135,18 +131,13 @@ done
 
 #### Set directory prefixes ##########################################
 
-sub "s/@prefix@/${ac_var_prefix:=\/usr\/local}/g
-s/@sbindir@/${ac_var_sbindir:=\/sbin}/g
+sub "s/@prefix@/${ac_var_prefix:=\/usr}/g
 s/@datadir@/${ac_var_datadir:=\$\{prefix\}\/share}/g
 s/@mandir@/${ac_var_mandir:=\$\{datadir\}\/man}/g
-s/@man1dir@/${ac_var_man1dir:=\$\{mandir\}\/man1}/g
-s/@sysconfdir@/${ac_var_includedir:=\/etc}/g
-s/@pamdir@/${ac_var_pamdir:=\$\{sysconfdir\}\/pam.d}/g
+s/@man8dir@/${ac_var_man1dir:=\$\{mandir\}\/man8}/g
 s/@libdir@/${ac_var_libdir:=\$\{prefix\}\/lib}/g
-s/@sysddir@/${ac_var_sysddir:=\$\{libdir\}\/systemd\/system}/g
 s/@TMPDIR@/$(escpath ${TMPDIR:-/tmp})/g
-s/@builddir@/\$\{TMPDIR\}\/make/g
-s/@pkgconfigdir@/${ac_var_pkgconfigdir:=\$\{libdir\}\/pkgconfig}/g"
+s/@builddir@/\$\{TMPDIR\}\/make/g"
 
 #### Find headers, libs, programs, and subs ##########################
 

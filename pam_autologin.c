@@ -25,7 +25,7 @@
 
 //{{{ Constants --------------------------------------------------------
 
-#define PATH_AUTOLOGIN_CONF	"/tmp/autologin.conf"
+#define PATH_AUTOLOGIN_CONF	"/etc/security/pam_autologin.conf"
 enum { MaxALSize = 64 };
 
 //}}}-------------------------------------------------------------------
@@ -53,7 +53,7 @@ static bool is_first_login (const char* tty)
     while (rend > 0) {
 	enum { UPerBlock = 16 };
 	struct utmp utra [UPerBlock] = {};
-	wipe_buffer (&utra[0], sizeof(utra));
+	memset (&utra[0], 0, sizeof(utra));
 	off_t rstart = rend - sizeof(utra);
 	unsigned uistart = 0;
 	if (rstart < 0) {
@@ -263,7 +263,7 @@ static int setup_autologin (pam_handle_t* pamh)
     //
     // Write both to the conf file
     //
-    if (!write_autologin ("johndoe", "iloveyoum"))
+    if (!write_autologin (username, password))
 	pam_syslog (pamh, LOG_ERR, "failed to save autologin: %s", strerror (errno));
 	// Failure to save autologin should not fail the login
     return PAM_SUCCESS;
@@ -336,7 +336,7 @@ int pam_sm_chauthtok (pam_handle_t* pamh [[maybe_unused]], int flags, int argc [
     int fd = open (PATH_AUTOLOGIN_CONF, O_WRONLY);
     if (fd >= 0) {
 	_Alignas(uint32_t) char albuf [MaxALSize];
-	wipe_buffer (albuf, sizeof(albuf));
+	memset (albuf, 0, sizeof(albuf));
 	write (fd, albuf, st.st_size < (off_t) sizeof(albuf) ? (size_t) st.st_size : sizeof(albuf));
 	lseek (fd, 0, SEEK_SET);
 	ftruncate (fd, 0);
@@ -355,23 +355,3 @@ int pam_sm_open_session (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_
     { return PAM_IGNORE; }
 int pam_sm_close_session (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
     { return PAM_IGNORE; }
-
-int main (void)
-{
-    _Alignas(uint32_t) char albuf [MaxALSize];
-    const char* username = NULL;
-    const char* password = NULL;
-    size_t albufsz = read_autologin (albuf, sizeof(albuf), &username, &password);
-    if (!albufsz)
-	puts ("Autologin disabled");
-    else
-	printf ("Autologin enabled for %s: %s\n", username, password);
-    wipe_buffer (albuf, sizeof(albuf));
-    if (!is_first_login ("tty1"))
-	puts ("Not first login");
-    else
-	puts ("First login");
-    if (write_autologin ("johndoe", "iloveyoum"))
-	puts ("Wrote autologin");
-    return EXIT_SUCCESS;
-}

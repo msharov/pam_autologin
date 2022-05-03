@@ -2,7 +2,7 @@
 
 ################ Source files ##########################################
 
-exe	:= $O${name}
+exe	:= $O${name}.so
 srcs	:= $(wildcard *.c)
 objs	:= $(addprefix $O,$(srcs:.c=.o))
 deps	:= ${objs:.o=.d}
@@ -21,7 +21,7 @@ run:	${exe}
 
 ${exe}:	${objs}
 	@echo "Linking $@ ..."
-	@${CC} ${ldflags} -o $@ $^ ${libs}
+	@${CC} -shared ${ldflags} -o $@ $^ ${libs}
 
 $O%.o:	%.c
 	@echo "    Compiling $< ..."
@@ -36,8 +36,8 @@ $O%.o:	%.c
 .PHONY:	install installdirs
 .PHONY: uninstall uninstall-man uninstall-pam uninstall-svc
 
-ifdef sbindir
-exed	:= ${DESTDIR}${sbindir}
+ifdef libdir
+exed	:= ${DESTDIR}${libdir}/security
 exei	:= ${exed}/$(notdir ${exe})
 
 ${exed}:
@@ -55,14 +55,14 @@ uninstall:
 	    rm -f ${exei};\
 	fi
 endif
-ifdef man1dir
-mand	:= ${DESTDIR}${man1dir}
-mani	:= ${mand}/${name}.1
+ifdef man8dir
+mand	:= ${DESTDIR}${man8dir}
+mani	:= ${mand}/${name}.8
 
 ${mand}:
 	@echo "Creating $@ ..."
 	@${INSTALL} -d $@
-${mani}:	conf/${name}.1 | ${mand}
+${mani}:	${name}.8 | ${mand}
 	@echo "Installing $@ ..."
 	@${INSTALL_DATA} $< $@
 
@@ -73,46 +73,6 @@ uninstall-man:
 	@if [ -f ${mani} ]; then\
 	    echo "Removing ${mani} ...";\
 	    rm -f ${mani};\
-	fi
-endif
-ifdef pamdir
-pamd	:= ${DESTDIR}${pamdir}
-pami	:= ${pamd}/${name}
-
-${pamd}:
-	@echo "Creating $@ ..."
-	@${INSTALL} -d $@
-${pami}:	conf/${name} | ${pamd}
-	@echo "Installing $@ ..."
-	@${INSTALL_DATA} $< $@
-
-installdirs:	${pamd}
-install:	${pami}
-uninstall:	uninstall-pam
-uninstall-pam:
-	@if [ -f ${pami} ]; then\
-	    echo "Removing ${pami} ...";\
-	    rm -f ${pami};\
-	fi
-endif
-ifdef sysddir
-svcd	:= ${DESTDIR}${sysddir}
-svci	:= ${svcd}/${name}@.service
-
-${svcd}:
-	@echo "Creating $@ ..."
-	@${INSTALL} -d $@
-${svci}:	conf/${name}@.service | ${svcd}
-	@echo "Installing $@ ..."
-	@${INSTALL_DATA} $< $@
-
-installdirs:	${svcd}
-install:	${svci}
-uninstall:	uninstall-svc
-uninstall-svc:
-	@if [ -f ${svci} ]; then\
-	    echo "Removing ${svci} ...";\
-	    rm -f ${svci};\
 	fi
 endif
 

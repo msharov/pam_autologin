@@ -5,19 +5,14 @@ name		:= @pkg_name@
 CC		:= @CC@
 INSTALL		:= @INSTALL@
 INSTALL_DATA	:= ${INSTALL} -m 644
-INSTALL_PROGRAM	:= ${INSTALL} -m 700 -o root -g root -s
+INSTALL_PROGRAM	:= ${INSTALL} -m 700 -o root -g root
 
 ################ Destination #########################################
 
 prefix		:= @prefix@
-sbindir		:= @sbindir@
-sysconfdir	:= @sysconfdir@
-pamdir		:= @pamdir@
 libdir		:= @libdir@
-sysddir		:= @sysddir@
-datadir		:= @datadir@
 mandir		:= @mandir@
-man1dir		:= @man1dir@
+man8dir		:= @man8dir@
 TMPDIR		:= @TMPDIR@
 builddir	:= @builddir@/${name}
 O		:= .o/
@@ -28,11 +23,11 @@ O		:= .o/
 libs		:= @pkg_libs@
 ifdef debug
     cflags	:= -O0 -ggdb3
-    ldflags	:= -g -rdynamic
+    ldflags	:= -g
 else
     cflags	:= -Os -g0 -DNDEBUG=1
     ldflags	:= -s
 endif
-CFLAGS		:= -Wall -Wextra -Wredundant-decls -Wshadow
-cflags		+= -std=c11 @pkg_cflags@ ${CFLAGS}
+cflags		+= -Wall -Wextra -Wredundant-decls -Wshadow \
+		   -std=c11 @pkg_cflags@ ${CFLAGS}
 ldflags		+= @pkg_ldflags@ ${LDFLAGS}
