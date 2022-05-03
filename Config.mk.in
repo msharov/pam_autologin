@@ -11,6 +11,7 @@ INSTALL_PROGRAM	:= ${INSTALL} -m 700 -o root -g root
 
 prefix		:= @prefix@
 libdir		:= @libdir@
+datadir		:= @datadir@
 mandir		:= @mandir@
 man8dir		:= @man8dir@
 TMPDIR		:= @TMPDIR@
