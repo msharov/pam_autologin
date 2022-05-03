@@ -271,7 +271,7 @@ static int setup_autologin (pam_handle_t* pamh)
 
 //}}}-------------------------------------------------------------------
 
-int pam_sm_authenticate (pam_handle_t* pamh, int flags, int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+int pam_sm_authenticate (pam_handle_t* pamh, int flags, int argc, const char** argv)
 {
     static bool s_tried_already = false;
     if (s_tried_already)
@@ -289,9 +289,27 @@ int pam_sm_authenticate (pam_handle_t* pamh, int flags, int argc [[maybe_unused]
     _Alignas(uint32_t) char albuf [MaxALSize];
     const char *al_username = NULL, *al_password = NULL;
     size_t albufsz = read_autologin (albuf, sizeof(albuf), &al_username, &al_password);
-    if (albufsz && al_username && al_password)
-	result = autologin_with (pamh, al_username, al_password);
-    else {
+    if (albufsz && al_username && al_password) {
+	//
+	// Autologin credentials are available
+	//
+	const char* login_tty = NULL;
+	if (PAM_SUCCESS == pam_get_item (pamh, PAM_TTY, (const void**) &login_tty) && login_tty) {
+	    const char* devname = strrchr (login_tty, '/');
+	    if (devname)
+		login_tty = devname + 1;
+	}
+	//
+	// Only autologin once per tty. If the user has logged out,
+	// he likely wants to login as somebody else. If "always" option
+	// is given, then autologin anyway.
+	//
+	if (!login_tty || (argc > 0 && 0 == strcmp ("always", argv[0])) || is_first_login (login_tty))
+	    result = autologin_with (pamh, al_username, al_password);
+    } else {
+	//
+	// Credentials not available; remember the next non-root login
+	//
 	if (!(flags & PAM_SILENT))
 	    pam_info (pamh, "Autologin will remember the next non-root login");
 	result = setup_autologin (pamh);
