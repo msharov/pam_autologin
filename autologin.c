@@ -216,6 +216,7 @@ static int autologin_with (pam_handle_t* pamh, const char* al_username, const ch
 	    pam_syslog (pamh, LOG_ERR, "pam_set_item: %s", pam_strerror (pamh, r));
 	    return PAM_USER_UNKNOWN;
 	}
+	pam_syslog (pamh, LOG_INFO, "automatically logging in user %s", al_username);
     } else if (0 != strcmp (cur_username, al_username))
 	return PAM_SUCCESS; // already logging in somebody else
     //
@@ -266,24 +267,31 @@ static int setup_autologin (pam_handle_t* pamh)
     if (!write_autologin (username, password))
 	pam_syslog (pamh, LOG_ERR, "failed to save autologin: %s", strerror (errno));
 	// Failure to save autologin should not fail the login
+    pam_syslog (pamh, LOG_NOTICE, "successfully saved autologin credentials");
     return PAM_SUCCESS;
 }
 
 //}}}-------------------------------------------------------------------
 
-int pam_sm_authenticate (pam_handle_t* pamh, int flags, int argc, const char** argv)
+int pam_sm_authenticate (pam_handle_t* pamh, int flags [[maybe_unused]], int argc, const char** argv)
 {
     static bool s_tried_already = false;
-    if (s_tried_already)
+    if (s_tried_already) {
+	pam_syslog (pamh, LOG_INFO, "not retrying autologin after failure");
 	return PAM_SUCCESS; // retrying login, possibly because the autologin saved password is wrong
+    }
     s_tried_already = true;
 
     const char* cur_password = NULL;
-    if (PAM_SUCCESS != pam_get_item (pamh, PAM_AUTHTOK, (const void**) &cur_password) || cur_password)
+    if (PAM_SUCCESS != pam_get_item (pamh, PAM_AUTHTOK, (const void**) &cur_password) || cur_password) {
+	pam_syslog (pamh, LOG_INFO, "already authenticated");
 	return PAM_SUCCESS; // already authenticated
+    }
 
-    if (!is_autologin_enabled())
+    if (!is_autologin_enabled()) {
+	pam_syslog (pamh, LOG_INFO, "autologin is disabled");
 	return PAM_SUCCESS;
+    }
 
     int result = PAM_SUCCESS;
     _Alignas(uint32_t) char albuf [MaxALSize];
@@ -310,15 +318,14 @@ int pam_sm_authenticate (pam_handle_t* pamh, int flags, int argc, const char** a
 	//
 	// Credentials not available; remember the next non-root login
 	//
-	if (!(flags & PAM_SILENT))
-	    pam_info (pamh, "Autologin will remember the next non-root login");
+	pam_info (pamh, "Autologin will remember the next non-root login");
 	result = setup_autologin (pamh);
     }
     wipe_buffer (albuf, sizeof(albuf));
     return result;
 }
 
-int pam_sm_chauthtok (pam_handle_t* pamh [[maybe_unused]], int flags, int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+int pam_sm_chauthtok (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
 {
     if (!(flags & PAM_UPDATE_AUTHTOK) || (flags & PAM_PRELIM_CHECK))
 	return PAM_IGNORE;
@@ -342,8 +349,7 @@ int pam_sm_chauthtok (pam_handle_t* pamh [[maybe_unused]], int flags, int argc [
 	ftruncate (fd, 0);
 	close (fd);
     }
-    if (!(flags & PAM_SILENT))
-	pam_info (pamh, "Autologin forgot saved login");
+    pam_info (pamh, "Autologin forgot saved credentials");
     return PAM_SUCCESS;
 }
 
