@@ -156,7 +156,7 @@ static void read_buffer (char* buf, size_t bufsz, const char** username, const c
 static bool is_autologin_enabled (void)
 {
     struct stat st;
-    return 0 > stat (PATH_AUTOLOGIN_CONF, &st);
+    return 0 == stat (PATH_AUTOLOGIN_CONF, &st);
 }
 
 static bool write_autologin (const char* username, const char* password)
