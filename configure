@@ -29,7 +29,7 @@ progs="CC=gcc CC=clang CC=cc INSTALL=install"
 pkgs="pam"
 
 # Default pkg flags to substitute when pkg-config is not found
-pkg_libs="-lncurses"
+pkg_libs="-lpam"
 pkg_cflags="-I/usr/include/security"
 pkg_ldflags=""
 
