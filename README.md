@@ -14,8 +14,8 @@ enabled when safely at home, and disabled when travelling. When using
 this module, autologin is easy to turn on and off because the a password
 is available either way and can be used for encryption. Other ways of
 doing autologin, such as the `-a` option to `getty`, use no password and
-bypass authentication entirely, making it impossible to unlock encrypted
-content at login.
+bypass authentication entirely, making it impossible to setup encrypted
+content.
 
 Using autologin is safe and secure on any computer that is not at risk of
 being stolen. The saved credentials file is readable only by root and is
@@ -23,14 +23,18 @@ inaccessible to remote attacks or malware that run under user privileges.
 
 ## Installation
 
-PAM is the only build dependency, and you almost certainly have it already.
+[PAM](https://www.linux-pam.org) is the only build dependency,
+and you almost certainly have it already.
+
 ```sh
 ./configure --prefix=/usr
 make install
 ```
+
 Then add `pam_autologin` to the top of the auth section of the PAM config
 file for the app you want to use. For `login` from `util-linux`, edit
 `/etc/pam.d/login` to something like this:
+
 ```pam
 #%PAM-1.0
 auth    include pam_autologin
@@ -38,10 +42,13 @@ auth    include system-local-login
 account include system-local-login
 session include system-local-login
 ```
+
 To save a login, create empty `/etc/security/pam_autologin.conf`.
+
 ```sh
 touch /etc/security/pam_autologin.conf
 ```
+
 The next time you reboot, you will see a message telling you that the next
 non-root login will be saved. Log in and it will be. Reboot again and you
 should be logged in automatically.
@@ -71,15 +78,19 @@ as if anybody still had those things...
 If you are using traditional `sysvinit`, this is easily done by editing
 `/etc/inittab`. If you are using systemd, you'll need to add a service
 override:
+
 ```sh
 systemctl edit getty@.service
 ```
+
 This will create `/etc/systemd/system/getty@.service.d/override.conf`,
 where you can put the following:
+
 ```ini
 ExecStart=
 ExecStart=-/sbin/agetty -n - $TERM
 ```
+
 Note that you have to have an empty `ExecStart=` line first, to reset
 this variable. The second line is pretty much what `ExecStart` was in
 the file you are editing, but with the `-n` added.
@@ -94,16 +105,18 @@ benefit from this module.
 ## Uninstallation
 
 To stop autologin, delete the saved credentials file:
+
 ```sh
 shred -u /etc/security/pam_autologin.conf
 ```
-Use the `shred` program from `util-linux` to zero out the file data
-before unlinking it. This ensures your password will not end up floating
-aimlessly in the unallocated storage area, where it could be found and
-read. `pam_autologin.conf` already does lightly encrypt it, but since
-the computer has to be able to read the file without any help from you,
-everything needed to decode the file must already be in it. So shred
-before deleting to be sure.
+
+Use the `shred` program from `util-linux` to zero out the file
+data before unlinking it. This ensures your password will not end up
+floating aimlessly in the unallocated storage area, where a determined
+attacked could find and read it.  `pam_autologin.conf` is already lightly
+encrypted, but since the computer has to be able to read the file without
+any help from you, everything needed to decode the file must already be
+in it. So shred before deleting to be sure.
 
 Without the config file, the autologin module does nothing. If you want
 to turn it off temporarily, you can leave the PAM configuration the way
