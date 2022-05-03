@@ -106,7 +106,7 @@ static ssize_t getrandom (void* buf, size_t buflen, unsigned flags [[maybe_unuse
 
 static size_t write_buffer (const char* username, const char* password, char* buf, size_t bufsz)
 {
-    wipe_buffer (buf, bufsz);
+    memset (buf, 0, bufsz);
     size_t username_len = strlen (username),
 	    password_len = strlen (password),
 	    uplen = username_len+1+password_len+1;
@@ -168,17 +168,18 @@ static bool write_autologin (const char* username, const char* password)
 	return false;
 
     _Alignas(uint32_t) char albuf [MaxALSize];
-    size_t usz = write_buffer (username, password, albuf, sizeof(albuf));
+    ssize_t usz = write_buffer (username, password, albuf, sizeof(albuf));
     if (!usz)
 	return false;
 
+    ssize_t bw = 0;
     int fd = open (PATH_AUTOLOGIN_CONF, O_WRONLY| O_CREAT| O_TRUNC, S_IRUSR| S_IWUSR);
-    if (fd < 0)
-	return false;
-    ssize_t bw = write (fd, albuf, usz);
+    if (fd >= 0) {
+	bw = write (fd, albuf, usz);
+	close (fd);
+    }
     wipe_buffer (albuf, sizeof(albuf));
-    close (fd);
-    return bw == (ssize_t) usz;
+    return bw == usz;
 }
 
 static size_t read_autologin (char* upbuf, size_t upbufsz, const char** username, const char** password)
