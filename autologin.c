@@ -254,6 +254,13 @@ static int setup_autologin (pam_handle_t* pamh)
 	return PAM_USER_UNKNOWN;
     }
     //
+    // Disallow root autologin because the autologin file is owned by root
+    //
+    if (0 == strcmp (username, "root")) {
+	pam_syslog (pamh, LOG_INFO, "not saving root for autologin");
+	return PAM_SUCCESS; // continue login process normally
+    }
+    //
     // Ask for password
     //
     const char* password = NULL;
