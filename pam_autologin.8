@@ -9,7 +9,7 @@ pam_autologin is a PAM module that automatically logs in using a saved
 username and password.
 .PP
 To enable this module, add it first on the auth list in the PAM
-configuration file. Create an empty /etc/security/pam_autologin.conf
+configuration file. Create an empty /etc/security/autologin.conf
 file. pam_autologin will detect this file, and that it is empty, and
 will save the first non-root username and password in it. During the
 next login, the module will automatically authenticate using the saved
@@ -21,7 +21,7 @@ determine if the login is first. When the user logs out, it is likely
 with the intent to log in to a different account, so autologin should
 not occur.
 .PP
-To disable autologin, delete the /etc/security/pam_autologin.conf file.
+To disable autologin, delete the /etc/security/autologin.conf file.
 It is prudent to overwrite the file with zeroes before deletion, by
 using the shred program from coreutils for example, to avoid leaking
 the password into the unused storage area, where it may or may not be

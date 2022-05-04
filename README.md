@@ -43,10 +43,10 @@ account include system-local-login
 session include system-local-login
 ```
 
-To save a login, create empty `/etc/security/pam_autologin.conf`.
+To save a login, create empty `/etc/security/autologin.conf`.
 
 ```sh
-touch /etc/security/pam_autologin.conf
+touch /etc/security/autologin.conf
 ```
 
 The next time you reboot, you will see a message telling you that the next
@@ -107,16 +107,16 @@ benefit from this module.
 To stop autologin, delete the saved credentials file:
 
 ```sh
-shred -u /etc/security/pam_autologin.conf
+shred -u /etc/security/autologin.conf
 ```
 
-Use the `shred` program from `util-linux` to zero out the file
-data before unlinking it. This ensures your password will not end up
-floating aimlessly in the unallocated storage area, where a determined
-attacked could find and read it.  `pam_autologin.conf` is already lightly
-encrypted, but since the computer has to be able to read the file without
-any help from you, everything needed to decode the file must already be
-in it. So shred before deleting to be sure.
+Use the `shred` program from `util-linux` to zero out the file data
+before unlinking it. This ensures your password will not end up floating
+aimlessly in the unallocated storage area, where a determined attacked
+could find and read it. `autologin.conf` is already lightly encrypted,
+but since the computer has to be able to read the file without any help
+from you, everything needed to decode the file must already be in it. So
+shred before deleting to be sure.
 
 Without the config file, the autologin module does nothing. If you want
 to turn it off temporarily, you can leave the PAM configuration the way

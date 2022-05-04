@@ -25,7 +25,7 @@
 
 //{{{ Constants --------------------------------------------------------
 
-#define PATH_AUTOLOGIN_CONF	"/etc/security/pam_autologin.conf"
+#define PATH_AUTOLOGIN_CONF	"/etc/security/autologin.conf"
 enum { MaxALSize = 64 };
 
 //}}}-------------------------------------------------------------------
@@ -34,6 +34,17 @@ enum { MaxALSize = 64 };
 // An explicitly noinline memset to ensure gcc doesn't think it knows better
 static __attribute__((noinline)) void wipe_buffer (void* buf, size_t bufsz)
     { memset (buf, 0, bufsz); }
+
+//}}}-------------------------------------------------------------------
+//{{{ is_autologin_enabled
+
+static bool is_autologin_enabled (void)
+{
+    if (0 == access ("/etc/security/pam_autologin.conf", R_OK))
+	rename ("/etc/security/pam_autologin.conf", PATH_AUTOLOGIN_CONF);
+    struct stat st;
+    return 0 == stat (PATH_AUTOLOGIN_CONF, &st);
+}
 
 //}}}-------------------------------------------------------------------
 //{{{ is_first_login
@@ -152,12 +163,6 @@ static void read_buffer (char* buf, size_t bufsz, const char** username, const c
 
 //}}}-------------------------------------------------------------------
 //{{{ autologin file read/write
-
-static bool is_autologin_enabled (void)
-{
-    struct stat st;
-    return 0 == stat (PATH_AUTOLOGIN_CONF, &st);
-}
 
 static bool write_autologin (const char* username, const char* password)
 {
