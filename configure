@@ -90,6 +90,7 @@ Installation directories:
   --mandir=dir		man page root [datadir/man]
   --man8dir=dir		man 8 page root [mandir/man8]
   --libdir=dir		object code libraries [prefix/lib]
+  --sysconfdir=dir	system configuration dir [/etc]
   --builddir=dir	location for compiled objects [\$TMPDIR/make]
 "
     print_components
@@ -136,6 +137,7 @@ s/@datadir@/${ac_var_datadir:=\$\{prefix\}\/share}/g
 s/@mandir@/${ac_var_mandir:=\$\{datadir\}\/man}/g
 s/@man8dir@/${ac_var_man1dir:=\$\{mandir\}\/man8}/g
 s/@libdir@/${ac_var_libdir:=\$\{prefix\}\/lib}/g
+s/@sysconfdir@/${ac_var_includedir:=\/etc}/g
 s/@TMPDIR@/$(escpath ${TMPDIR:-/tmp})/g
 s/@builddir@/\$\{TMPDIR\}\/make/g"
 

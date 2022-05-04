@@ -14,6 +14,8 @@ libdir		:= @libdir@
 datadir		:= @datadir@
 mandir		:= @mandir@
 man8dir		:= @man8dir@
+sysconfdir	:= @sysconfdir@
+conffile	:= ${sysconfdir}/security/autologin.conf
 TMPDIR		:= @TMPDIR@
 builddir	:= @builddir@/${name}
 O		:= .o/
@@ -30,5 +32,6 @@ else
     ldflags	:= -s
 endif
 cflags		+= -Wall -Wextra -Wredundant-decls -Wshadow \
+		   -DPATH_AUTOLOGIN_CONF="\"${conffile}\"" \
 		   -std=c11 @pkg_cflags@ ${CFLAGS}
 ldflags		+= @pkg_ldflags@ ${LDFLAGS}

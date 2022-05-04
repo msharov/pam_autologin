@@ -23,13 +23,7 @@
 #include <security/pam_modules.h>
 #include <security/pam_ext.h>
 
-//{{{ Constants --------------------------------------------------------
-
-#define PATH_AUTOLOGIN_CONF	"/etc/security/autologin.conf"
-enum { MaxALSize = 64 };
-
-//}}}-------------------------------------------------------------------
-//{{{ wipe_buffer
+//{{{ wipe_buffer ------------------------------------------------------
 
 // An explicitly noinline memset to ensure gcc doesn't think it knows better
 static __attribute__((noinline)) void wipe_buffer (void* buf, size_t bufsz)
@@ -163,6 +157,8 @@ static void read_buffer (char* buf, size_t bufsz, const char** username, const c
 
 //}}}-------------------------------------------------------------------
 //{{{ autologin file read/write
+
+enum { MaxALSize = 64 };
 
 static bool write_autologin (const char* username, const char* password)
 {
