@@ -31,9 +31,9 @@ and you almost certainly have it already.
 make install
 ```
 
-Then add `pam_autologin` to the top of the auth section of the PAM config
-file for the app you want to use. For `login` from `util-linux`, edit
-`/etc/pam.d/login` to something like this:
+Then add `pam_autologin` to the top of the auth section of the PAM
+config file for the app you want to use. For the usual `login` from
+`util-linux`, edit `/etc/pam.d/login` to something like this:
 
 ```pam
 #%PAM-1.0
@@ -53,31 +53,31 @@ The next time you reboot, you will see a message telling you that the next
 non-root login will be saved. Log in and it will be. Reboot again and you
 should be logged in automatically.
 
+By default, autologin only happen once on each tty. If you log out,
+the assumption is that you want to log in with another account,
+so you will be prompted for both username and password. To log in
+automatically every time, you can give `pam_autologin` the `always`
+option in `/etc/pam.d/login`:
+```pam
+auth include pam_autologin always
+```
+
 ## UnPAMmed
 
-... or not quite yet. Unfortunately there is one more thing that needs
-doing. By default, each virtual console is owned by a `getty` process,
-which is the one that prompts you for the username. It does that because
-in the ancient times consoles were real physical terminals, attached to
-the central mainframe by various means, and getty had to figure out what
-kind of a connection it had and the easiest way to do so was to get some
-input from the user. Today there is no such thing as a serial terminal
-any more, but tradition prevails, and getty is still the one tasked with
-prompting for the username. Because getty is not a PAM app, it does not
-use this autologin module. It will instead pass the username to `login`
-on the command line. This means you still have to type in the username,
-even though `login` will be able to use the saved password and not ask
-you for one.
+... or not quite yet. The console login prompt actually comes from the
+`getty` process. It prompts for the username and forwards it to the
+`login` program, which prompts for the password and logs you in. `login`
+is a PAM application and so loads this autologin module, but `getty`
+does not, and so will prompt for the username anyway. `login` then gets
+the username from `getty`, gets the password from this autologin module,
+and logs you in. This behavior, of automatically logging in one user with
+a saved password and presenting a normal login to others, may actually
+be desirable in some situations.
 
-To fix this problem, you have to add the `-n` flag to `getty`, telling it
-to launch `login` right away. Feel free to read about this option on the
-`getty` man page, where you will find several entertaining warnings about
-how the world will end if `getty` can't figure out your serial terminal,
-as if anybody still had those things...
-
-If you are using traditional `sysvinit`, this is easily done by editing
-`/etc/inittab`. If you are using systemd, you'll need to add a service
-override:
+For full autologin you'll need to add the `-n` flag to `getty` so it will
+launch `login` immediately. If you are using traditional `sysvinit`,
+this is easily done by editing `/etc/inittab`. If you are using systemd,
+you'll need to add a service drop-in file:
 
 ```sh
 systemctl edit getty@.service
@@ -95,12 +95,10 @@ Note that you have to have an empty `ExecStart=` line first, to reset
 this variable. The second line is pretty much what `ExecStart` was in
 the file you are editing, but with the `-n` added.
 
-Whew.
-
-Unfortunately, you may run into similar problems with other apps, which
-prompt first and start PAM after. `lightdm`, for example, will always
-ask first, before initiating a PAM conversation, and so can not fully
-benefit from this module.
+Some PAM applications may also prevent full autologin if they prompt
+before PAM tells them to. `lightdm`, for example, will always ask first,
+before initiating a PAM conversation, and so can not fully benefit from
+this module.
 
 ## Uninstallation
 
@@ -110,18 +108,18 @@ To stop autologin, delete the saved credentials file:
 shred -u /etc/security/autologin.conf
 ```
 
-Use the `shred` program from `util-linux` to zero out the file data
-before unlinking it. This ensures your password will not end up floating
-aimlessly in the unallocated storage area, where a determined attacked
-could find and read it. `autologin.conf` is already lightly encrypted,
-but since the computer has to be able to read the file without any help
-from you, everything needed to decode the file must already be in it. So
-shred before deleting to be sure.
+Use the `shred` program from `util-linux`, zeroing out the file data
+before unlinking it, to ensure your password will not end up floating
+in the unallocated storage area, where a determined attacked could find
+and read it. `autologin.conf` is already lightly encrypted, but that
+merely makes it look like random data. To allow the computer to decode
+it without any help from you, the decryption key must be stored in the
+file, and thus can offer only obfuscation, not protection.
 
 Without the config file, the autologin module does nothing. If you want
 to turn it off temporarily, you can leave the PAM configuration the way
-it is. Then when you are in a safe place again, create an empty conf
-file again, the next login will be saved, and your life is easy again.
+it is. When you are in a safe place again, create an empty conf file. The
+next login will be saved, and your life will be easy once again.
 
 ## Bugs
 
