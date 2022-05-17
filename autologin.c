@@ -22,6 +22,7 @@
 #endif
 #include <security/pam_modules.h>
 #include <security/pam_ext.h>
+#define UNUSED __attribute__((unused))
 
 //{{{ wipe_buffer ------------------------------------------------------
 
@@ -98,7 +99,7 @@ static void encrypt (uint32_t key, char* buf, size_t bufsz)
 //{{{ Written format packing
 
 #if !__has_include(<sys/random.h>)
-static ssize_t getrandom (void* buf, size_t buflen, unsigned flags [[maybe_unused]])
+static ssize_t getrandom (void* buf, size_t buflen, unsigned flags UNUSED)
 {
     int r = -1, fd = open (_PATH_DEV "random", O_RDONLY);
     if (fd >= 0) {
@@ -284,7 +285,7 @@ static int setup_autologin (pam_handle_t* pamh)
 
 //}}}-------------------------------------------------------------------
 
-int pam_sm_authenticate (pam_handle_t* pamh, int flags [[maybe_unused]], int argc, const char** argv)
+int pam_sm_authenticate (pam_handle_t* pamh, int flags UNUSED, int argc, const char** argv)
 {
     static bool s_tried_already = false;
     if (s_tried_already) {
@@ -338,7 +339,7 @@ int pam_sm_authenticate (pam_handle_t* pamh, int flags [[maybe_unused]], int arg
     return result;
 }
 
-int pam_sm_chauthtok (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+int pam_sm_chauthtok (pam_handle_t* pamh UNUSED, int flags UNUSED, int argc UNUSED, const char** argv UNUSED)
 {
     if (!(flags & PAM_UPDATE_AUTHTOK) || (flags & PAM_PRELIM_CHECK))
 	return PAM_IGNORE;
@@ -366,11 +367,11 @@ int pam_sm_chauthtok (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unu
     return PAM_SUCCESS;
 }
 
-int pam_sm_setcred (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+int pam_sm_setcred (pam_handle_t* pamh UNUSED, int flags UNUSED, int argc UNUSED, const char** argv UNUSED)
     { return PAM_SUCCESS; }
-int pam_sm_acct_mgmt (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+int pam_sm_acct_mgmt (pam_handle_t* pamh UNUSED, int flags UNUSED, int argc UNUSED, const char** argv UNUSED)
     { return PAM_IGNORE; }
-int pam_sm_open_session (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+int pam_sm_open_session (pam_handle_t* pamh UNUSED, int flags UNUSED, int argc UNUSED, const char** argv UNUSED)
     { return PAM_IGNORE; }
-int pam_sm_close_session (pam_handle_t* pamh [[maybe_unused]], int flags [[maybe_unused]], int argc [[maybe_unused]], const char** argv [[maybe_unused]])
+int pam_sm_close_session (pam_handle_t* pamh UNUSED, int flags UNUSED, int argc UNUSED, const char** argv UNUSED)
     { return PAM_IGNORE; }
