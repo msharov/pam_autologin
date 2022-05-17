@@ -22,6 +22,13 @@ desc=[	Use -march=native]
 seds=[s/ -std=c/ -march=native -std=c/]
 }';
 
+# Misc options
+misc='
+{
+name=[no-pam-pkg]
+desc=[	Disable pkg-config search]
+}';
+
 # First pair is used if nothing matches
 progs="CC=gcc CC=clang CC=cc INSTALL=install"
 
@@ -75,6 +82,19 @@ print_components() {
     echo
 }
 
+print_misc() {
+	local miscoptions name desc
+    miscoptions=$misc
+    echo "Other options:"
+    while [ -n "$miscoptions" ]; do
+	name=$(expr "$miscoptions" : '[^}]*name=\[\([^]]*\)\]')
+	desc=$(expr "$miscoptions" : '[^}]*desc=\[\([^]]*\)\]')
+	echo "  --$name	$desc"
+	miscoptions=$(expr "$miscoptions" : '[^}]*}\(.*\)')
+    done
+    echo
+}
+
 print_help() {
     echo "This program configures $pkg_string build system.
 
@@ -94,6 +114,7 @@ Installation directories:
   --builddir=dir	location for compiled objects [\$TMPDIR/make]
 "
     print_components
+    print_misc
     echo "Report bugs to $pkg_bugreport"
 }
 
@@ -119,12 +140,17 @@ sub_comp() {
     done
 }
 
+sub_pam() {
+	pkgconfig="x"
+}
+
 for i in "$@"; do
     case "$i" in
 	--)		break;;
 	--version |-V)	print_version && die;;
 	--help |-h |-?)	print_help && die;;
 	--*=*)		sub_var $(expr "$i" : '--\([^=]*\)=') "$(expr "$i" : '[^=]*=\(.*\)')";;
+	--no-pam-pkg)	sub_pam $(expr "$i" : '--\(.*\)');;
 	--*)		sub_comp $(expr "$i" : '--\(.*\)');;
 	*)		echo "Error: unrecognized option \"$i\"" && die;;
     esac
@@ -162,18 +188,22 @@ for i in $progs; do
 done
 
 # Packages found using pkg-config
-pkgconfig=$(which pkg-config 2>/dev/null)
-if [ -n "$pkgconfig" ] && [ -x "$pkgconfig" ]; then
-    faildeps=""
-    for i in $pkgs; do
-	$($pkgconfig --exists $i) || faildeps="$i $faildeps"
-    done
-    if [ -n "$faildeps" ]; then
-	echo "Error: missing required packages: $faildeps"; die
-    fi
-    pkg_cflags=$($pkgconfig --cflags $pkgs)
-    pkg_libs=$($pkgconfig --libs-only-l $pkgs)
-    pkg_ldflags=$($pkgconfig --libs-only-L --libs-only-other $pkgs)
+if [ "x"$pkgconfig = "xx" ]; then
+	pkgconfig=""
+else
+	pkgconfig=$(which pkg-config 2>/dev/null)
+	if [ -n "$pkgconfig" ] && [ -x "$pkgconfig" ]; then
+		faildeps=""
+		for i in $pkgs; do
+		$($pkgconfig --exists $i) || faildeps="$i $faildeps"
+		done
+		if [ -n "$faildeps" ]; then
+		echo "Error: missing required packages: $faildeps"; die
+		fi
+		pkg_cflags=$($pkgconfig --cflags $pkgs)
+		pkg_libs=$($pkgconfig --libs-only-l $pkgs)
+		pkg_ldflags=$($pkgconfig --libs-only-L --libs-only-other $pkgs)
+	fi
 fi
 sub "s/@pkg_cflags@/$(escpath $pkg_cflags)/"
 sub "s/@pkg_libs@/$(escpath $pkg_libs)/"
