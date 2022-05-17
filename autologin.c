@@ -35,8 +35,6 @@ static __attribute__((noinline)) void wipe_buffer (void* buf, size_t bufsz)
 
 static bool is_autologin_enabled (void)
 {
-    if (0 == access ("/etc/security/pam_autologin.conf", R_OK))
-	rename ("/etc/security/pam_autologin.conf", PATH_AUTOLOGIN_CONF);
     struct stat st;
     return 0 == stat (PATH_AUTOLOGIN_CONF, &st);
 }
