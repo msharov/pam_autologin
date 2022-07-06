@@ -1,5 +1,12 @@
 # PAM Autologin
 
+## Project Moved
+
+This project has moved to [SourceForge](https://sourceforge.net/p/pam-autologin/).
+Please update your links. This repository will be removed soon.
+
+## Description
+
 This module logs in automatically with saved username and password.
 
 Because this allows a normal login process, the saved password can be
